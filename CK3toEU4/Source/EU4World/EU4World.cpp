@@ -734,6 +734,13 @@ void EU4::World::alterProvinceDevelopment(bool absoluteSwitch)
 				modFactor = 0.68;
 			else if (targetProvinces > 3)
 				modFactor = 0.6;
+			const auto sourceProvinces = static_cast<int>(provinceMapper.getCK3Titles(province->getName()).size());
+			if (sourceProvinces == 2)
+				modFactor = 0.8;
+			else if (sourceProvinces == 3)
+				modFactor = 0.68;
+			else if (sourceProvinces > 3)
+				modFactor = 0.6;
 		}
 
 		generalDevelopment *= modFactor;
