@@ -694,6 +694,11 @@ void EU4::World::alterProvinceDevelopment(bool absoluteSwitch)
 		double totalDip = 0;
 		double totalMil = 0;
 		double generalDevelopment = 0;
+		double provfactor = 0.95;
+		double maxAdm = 0;
+		double maxDip = 0;
+		double maxMil = 0;
+		double maxDevelopment = 0;
 
 		if (!absoluteSwitch)
 		{
@@ -708,10 +713,21 @@ void EU4::World::alterProvinceDevelopment(bool absoluteSwitch)
 		}
 		else
 		{
+			//to compare so rich provs dont get punished from several provs converting with them
+			const auto& baronies = province->getSourceProvince()->getDFVassals();
+			auto [adm, dip, mil] = sumBaroniesForDevelopment(baronies);
+			maxAdm = adm;
+			maxDip = dip;
+			maxMil = mil;
+			const auto development = province->getSourceProvince()->getClay()->getCounty()->second->getDevelopment();
+			maxDevelopment = std::max(0.0, development - devWeightsMapper.getDevTreshold());
+			
 			// sum every source mapping province's development.
 			const auto& sourceTitles = provinceMapper.getCK3Titles(province->getProvinceID());
+			
 			for (const auto& sourceTitle: sourceTitles | std::views::values)
 			{
+				provfactor += 0.05;
 				if (!sourceTitle)
 					continue;
 				const auto& baronies = sourceTitle->getDFVassals();
@@ -732,8 +748,25 @@ void EU4::World::alterProvinceDevelopment(bool absoluteSwitch)
 		totalAdm *= modFactor;
 		totalDip *= modFactor;
 		totalMil *= modFactor;
-
-		generalDevelopment *= devWeightsMapper.getDevFromDev() / 3;
+		
+		generalDevelopment *= devWeightsMapper.getDevFromDev();
+		
+		if (absoluteSwitch)
+		{	
+			maxDevelopment *= devWeightsMapper.getDevFromDev();
+			double dev1 = generalDevelopment + totalAdm + totalDip + totalMil;
+			double dev2 = maxDevelopment + maxAdm + maxDip + maxMil;
+			dev2 *= provfactor;
+		
+			if (dev2 > dev1)
+			{	
+				totalAdm = (maxAdm * provfactor);
+				totalMil = (maxMil * provfactor);
+				totalDip = (maxDip * provfactor);
+				generalDevelopment = (maxDevelopment * provfactor);
+			}
+		}	
+		generalDevelopment *= 1 / 3;
 		province->setAdm(std::max(static_cast<int>(std::lround(totalAdm + generalDevelopment)), 1));
 		province->setDip(std::max(static_cast<int>(std::lround(totalDip + generalDevelopment)), 1));
 		province->setMil(std::max(static_cast<int>(std::lround(totalMil + generalDevelopment)), 1));
